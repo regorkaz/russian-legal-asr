@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal-ASR — запись и расшифровка консультации</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body>
+<header>
+    <h1>Legal-ASR</h1>
+    <p class="subtitle">Запись консультации с расшифровкой и идентификацией спикеров</p>
+</header>
+
+<section id="consent-gate" class="card">
+    <h2>Согласие на обработку</h2>
+    <p>
+        Аудиозапись, её расшифровка и голосовые слепки сохраняются локально на сервере.
+        Перед началом работы все участники должны подтвердить согласие на запись и обработку голоса.
+    </p>
+    <label class="consent-row">
+        <input type="checkbox" id="consent-checkbox">
+        <span>Все участники дали согласие на запись и обработку голоса (ст. 11 152-ФЗ, ст. 8 ФЗ-63)</span>
+    </label>
+</section>
+
+<main id="workspace" class="disabled">
+
+    <section class="card">
+        <h2>Голосовые слепки</h2>
+        <p class="muted small">Минимум один слепок необходим для запуска консультации. Имя файла = метка спикера.</p>
+        <ul id="voices-list" class="voices-list"><li class="muted">Загрузка…</li></ul>
+
+        <div class="add-voice">
+            <h3>Добавить слепок</h3>
+            <label>Имя
+                <input type="text" id="voice-name" placeholder="например, Lawyer или Client" maxlength="40">
+            </label>
+
+            <div class="button-row">
+                <button id="voice-record-btn">● Записать с микрофона (5–10 сек)</button>
+                <span id="voice-record-status" class="status"></span>
+            </div>
+            <audio id="voice-preview" controls style="display:none; width:100%; margin-top:.5rem;"></audio>
+            <div class="button-row" id="voice-recorded-actions" style="display:none;">
+                <button id="voice-save-recorded-btn">Сохранить запись</button>
+                <button id="voice-discard-btn" class="ghost">Сбросить</button>
+            </div>
+
+            <div class="divider">или</div>
+
+            <div class="button-row">
+                <input type="file" id="voice-file-input" accept="audio/*" style="display:none;">
+                <button id="voice-upload-btn" class="ghost">Загрузить mp3 / wav</button>
+                <span id="voice-upload-status" class="status"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Консультация</h2>
+        <div class="mode-tabs">
+            <button class="mode-tab active" data-mode="live">Записать в реальном времени</button>
+            <button class="mode-tab" data-mode="upload">Загрузить mp3</button>
+        </div>
+
+        <div id="mode-live" class="mode-pane active">
+            <div class="button-row">
+                <button id="live-start-btn">▶ Начать запись</button>
+                <button id="live-stop-btn" disabled>■ Остановить</button>
+                <span id="live-status" class="status"></span>
+            </div>
+        </div>
+
+        <div id="mode-upload" class="mode-pane">
+            <div class="button-row">
+                <input type="file" id="upload-file-input" accept="audio/mpeg,audio/mp3,.mp3" style="display:none;">
+                <button id="upload-pick-btn">Выбрать mp3 файл</button>
+                <span id="upload-filename" class="muted small"></span>
+            </div>
+            <div class="button-row">
+                <button id="upload-start-btn" disabled>Начать обработку</button>
+                <span id="upload-status" class="status"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="card transcript-card">
+        <h2>Расшифровка</h2>
+        <div id="transcript" class="transcript"></div>
+        <div id="downloads" class="button-row" style="display:none; margin-top:.75rem;">
+            <a id="download-transcript" class="ghost button-link" href="/transcript" download="transcript.txt">Скачать transcript.txt</a>
+            <a id="download-audio" class="ghost button-link" href="/audio" download="audio.wav">Скачать audio.wav</a>
+        </div>
+    </section>
+
+</main>
+
+<script src="/static/app.js?v=2"></script>
+</body>
+</html>

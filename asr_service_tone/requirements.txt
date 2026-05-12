@@ -1,0 +1,4 @@
+redis>=5.0,<6.0
+tone @ git+https://github.com/voicekit-team/T-one.git
+miniaudio>=1.59
+numpy>=1.24
