@@ -1,0 +1,159 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  asr_worker:
+    build:
+      context: ./asr_service
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONUNBUFFERED=1
+      - TQDM_DISABLE=1
+      - LM_MODE=${LM_MODE:-greedy}
+      - LM_BEAM_WIDTH=${LM_BEAM_WIDTH:-10}
+      - LM_ALPHA=${LM_ALPHA:-0.5}
+      - LM_BETA=${LM_BETA:-1.5}
+      - HOTWORD_WEIGHT=${HOTWORD_WEIGHT:-10.0}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,os; redis.Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])).ping()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  speaker_worker:
+    build:
+      context: ./speaker_service
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - HF_TOKEN=${HF_TOKEN}
+      - ENROLLMENT_DIR=/data/web_workspace/voices
+      - SPEAKER_MODE=${SPEAKER_MODE:-cosine}
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.5}
+      - DIARIZATION_THRESHOLD=${DIARIZATION_THRESHOLD:-0.55}
+      - DIARIZATION_SMOOTHING=${DIARIZATION_SMOOTHING:-0.1}
+    volumes:
+      - ./data:/data:ro
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,os; redis.Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])).ping()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  webgateway:
+    build:
+      context: .
+      dockerfile: ./webgateway/Dockerfile
+    image: russian-legal-asr-app
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATA_DIR=/app/data
+      - LOG_DIR=/app/logs
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # One-shot offline experiment runner (not started by `up`; use `docker compose run`).
+  # Streams data/input/$CONSULTATION through the gateway, then prints/saves WER/CER/speaker
+  # metrics to data/output/$EXPERIMENT. Shares the webgateway image (gateway + metrics baked in).
+  simulator:
+    profiles: ["sim"]
+    build:
+      context: .
+      dockerfile: ./webgateway/Dockerfile
+    image: russian-legal-asr-app
+    command: ["python", "-m", "gateway.gateway_simulator"]
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATA_DIR=/app/data
+      - CONSULTATION=${CONSULTATION:-consultation1}
+      - OUTPUT_DIR=/app/data/output/${EXPERIMENT:-${CONSULTATION:-consultation1}}
+      - VAD_MODE=${VAD_MODE:-batched}
+      - VAD_MIN_SPEECH_MS=${VAD_MIN_SPEECH_MS:-}
+      - VAD_MIN_SILENCE_MS=${VAD_MIN_SILENCE_MS:-}
+      - REALTIME_FACTOR=${REALTIME_FACTOR:-0.0}
+      - RUN_METRICS=${RUN_METRICS:-true}
+      - WARMUP_TRIM=${WARMUP_TRIM:-0}
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+      asr_worker:
+        condition: service_healthy
+      speaker_worker:
+        condition: service_healthy
+
+  asr_worker_whisper:
+    profiles: ["whisper"]
+    build:
+      context: ./asr_service_whisper
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONUNBUFFERED=1
+      - TQDM_DISABLE=1
+      - WHISPER_MODEL=${WHISPER_MODEL:-large-v3}
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-int8}
+      - WHISPER_BEAM_SIZE=${WHISPER_BEAM_SIZE:-1}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,os; redis.Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])).ping()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
+
+  asr_worker_tone:
+    profiles: ["tone"]
+    build:
+      context: ./asr_service_tone
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - PYTHONUNBUFFERED=1
+      - TQDM_DISABLE=1
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import redis,os; redis.Redis(host=os.environ['REDIS_HOST'], port=int(os.environ['REDIS_PORT'])).ping()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 120s

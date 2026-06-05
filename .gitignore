@@ -1,0 +1,19 @@
+# Secrets / local config
+.env
+
+# Data, models cache, run outputs and logs (provided/generated locally)
+data/
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/

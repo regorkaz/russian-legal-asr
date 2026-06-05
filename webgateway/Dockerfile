@@ -7,11 +7,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 COPY webgateway/requirements.txt /app/webgateway/requirements.txt
+COPY metrics/requirements.txt /app/metrics/requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -r /app/webgateway/requirements.txt
+    pip install --no-cache-dir -r /app/webgateway/requirements.txt -r /app/metrics/requirements.txt
 
 COPY gateway/ /app/gateway/
+COPY metrics/ /app/metrics/
 COPY webgateway/ /app/webgateway/
 
 ENV PYTHONPATH=/app

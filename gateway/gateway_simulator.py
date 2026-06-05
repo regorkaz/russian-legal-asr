@@ -18,8 +18,9 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 REALTIME_FACTOR = float(os.getenv("REALTIME_FACTOR", "0.0"))
 RUN_METRICS = os.getenv("RUN_METRICS", "true").lower() == "true"
 WARMUP_TRIM = int(os.getenv("WARMUP_TRIM", "0"))
-VAD_MIN_SPEECH_MS = os.getenv("VAD_MIN_SPEECH_MS")
-VAD_MIN_SILENCE_MS = os.getenv("VAD_MIN_SILENCE_MS")
+# `or None` so an empty env value (e.g. compose `${VAD_MIN_SILENCE_MS:-}`) means "use VAD default".
+VAD_MIN_SPEECH_MS = os.getenv("VAD_MIN_SPEECH_MS") or None
+VAD_MIN_SILENCE_MS = os.getenv("VAD_MIN_SILENCE_MS") or None
 
 # VAD_MODE = none | batched | streaming. Falls back to legacy STREAMING_VAD bool.
 _legacy_streaming = os.getenv("STREAMING_VAD")

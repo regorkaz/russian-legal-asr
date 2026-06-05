@@ -258,23 +258,36 @@ async def stream(ws: WebSocket) -> None:
     _log_consent(op_tag, user_agent, client_host)
     log.info("Live %s: started from %s", session_id, client_host)
 
-    _reset_workspace_outputs()
-    _notify_speaker_reload()
+    try:
+        _reset_workspace_outputs()
+        _notify_speaker_reload()
 
-    audio_source = WebSocketAudioSource()
-    result_q: queue.Queue = queue.Queue()
+        audio_source = WebSocketAudioSource()
+        result_q: queue.Queue = queue.Queue()
 
-    def on_line(payload: dict) -> None:
-        result_q.put(payload)
+        def on_line(payload: dict) -> None:
+            result_q.put(payload)
 
-    pipeline = StreamingPipeline(
-        source=audio_source,
-        redis_client=_redis(),
-        output_path=TRANSCRIPT_PATH,
-        timings_path=TIMINGS_PATH,
-        streaming_vad=True,
-        on_line=on_line,
-    )
+        pipeline = StreamingPipeline(
+            source=audio_source,
+            redis_client=_redis(),
+            output_path=TRANSCRIPT_PATH,
+            timings_path=TIMINGS_PATH,
+            vad_mode="streaming",
+            on_line=on_line,
+        )
+    except Exception as e:
+        # Anything that fails during setup must release the lock, otherwise the
+        # in-memory op lock stays held and every later session gets "Another
+        # operation is active".
+        log.exception("Live %s: setup failed: %s", session_id, e)
+        _release_op(op_tag)
+        try:
+            await ws.send_json({"type": "error", "message": f"Setup failed: {e}"})
+            await ws.close(code=4500, reason="Setup failed")
+        except Exception:
+            pass
+        return
 
     await ws.send_json({"type": "session", "session_id": session_id})
 
@@ -375,7 +388,7 @@ def _run_upload_pipeline(mp3_bytes: bytes, op_tag: str) -> None:
             redis_client=_redis(),
             output_path=TRANSCRIPT_PATH,
             timings_path=TIMINGS_PATH,
-            streaming_vad=False,  # batched VAD for offline-style processing
+            vad_mode="batched",  # batched VAD for offline-style processing
             on_line=on_line,
         )
         pipeline.run()
